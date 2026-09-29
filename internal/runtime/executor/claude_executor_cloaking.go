@@ -1440,6 +1440,15 @@ func applyCloakingInternal(
 	if !isProbeOrHelper && !isSubagent {
 		turnOrigin = "human"
 	}
+	reminderTime := claudeCodeCurrentTime(cfg, auth)
+	if cfg != nil && firstClaudeUserMessageIndex(payload) >= 0 {
+		var errDate error
+		dateHeaders := resolveIncomingClaudeHeaders(ctx, helps.IncomingHeadersFromContext(ctx))
+		reminderTime, errDate = helps.ClaudeSessionDate(cfg.AuthDir, dateHeaders, payload, reminderTime)
+		if errDate != nil {
+			return nil, false, errDate
+		}
+	}
 	payload = checkSystemInstructionsWithSigningModeAt(
 		payload,
 		settings.strictMode,
@@ -1447,7 +1456,7 @@ func applyCloakingInternal(
 		billingVersion,
 		"cli",
 		workload,
-		claudeCodeCurrentTime(cfg, auth),
+		reminderTime,
 		isSubagent,
 		prevReq,
 		promptID,
