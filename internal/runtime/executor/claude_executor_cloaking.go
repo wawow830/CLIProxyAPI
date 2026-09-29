@@ -1463,6 +1463,20 @@ func applyCloakingInternal(
 	if !isProbeOrHelper && !isSubagent {
 		turnOrigin = "human"
 	}
+	// Persisted per-conversation date (survives restarts and idle gaps) takes
+	// precedence over the in-memory pin; the in-memory pin seeds a new record.
+	if cfg != nil && firstClaudeUserMessageIndex(payload) >= 0 {
+		seed := claudeCodeCurrentTime(cfg, auth)
+		if pinned, errParse := time.ParseInLocation(time.DateOnly, pinnedDate, seed.Location()); errParse == nil {
+			seed = pinned
+		}
+		dateHeaders := resolveIncomingClaudeHeaders(ctx, helps.IncomingHeadersFromContext(ctx))
+		persisted, errDate := helps.ClaudeSessionDate(cfg.AuthDir, dateHeaders, payload, seed)
+		if errDate != nil {
+			return nil, false, errDate
+		}
+		pinnedDate = claudeCodeLocalDate(persisted)
+	}
 	payload = checkSystemInstructionsWithSigningModeAt(
 		payload,
 		settings.strictMode,
