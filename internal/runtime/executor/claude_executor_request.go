@@ -1256,6 +1256,9 @@ func applyClaudeHeadersWithNativeProfile(
 		if !reqProbeOrHelper && !countTokens && helps.ClaudePayloadHas1hTTL(body) {
 			baseBetas = withClaudeExtendedCacheTTLBeta(baseBetas)
 		}
+		if cfg != nil && cfg.Claude.PromptCacheTTL == "5m" {
+			baseBetas = withoutClaudeBeta(baseBetas, claudeExtendedCacheTTLBeta)
+		}
 		reqModel := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "model").String()))
 		if isClaudeHaikuModel(reqModel) && !gjson.GetBytes(body, "fallbacks").Exists() && !helperProfile {
 			baseBetas = withoutClaudeBeta(baseBetas, claudeServerSideFallbackBeta)

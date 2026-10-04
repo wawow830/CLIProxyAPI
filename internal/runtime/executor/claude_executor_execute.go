@@ -248,6 +248,10 @@ func (e *ClaudeExecutor) Execute(ctx context.Context, auth *cliproxyauth.Auth, r
 	// Normalize TTL values to prevent ordering violations under prompt-caching-scope-2026-01-05.
 	// A 1h-TTL block must not appear after a 5m-TTL block in evaluation order (tools→system→messages).
 	body = normalizeCacheControlTTL(body)
+	if e.cfg != nil && e.cfg.Claude.PromptCacheTTL == "5m" {
+		// No ttl means Anthropic's five-minute default, including caller markers.
+		body = stripClaudeCacheControlTTL(body)
+	}
 	// Payload rules and other request processing may rewrite stream. Keep the
 	// upstream body, transport headers, and response parser on one authority.
 	// Native non-stream Haiku helper requests omit stream rather than sending

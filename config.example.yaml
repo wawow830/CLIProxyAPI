@@ -369,6 +369,10 @@ upstream:
     model-level-cooling: false
 
   claude:
+    # Set to "5m" to force Anthropic's five-minute prompt cache for all requests,
+    # including caller-supplied markers. Empty preserves native TTL selection (OAuth: 1h).
+    prompt-cache-ttl: ""
+
     # When true, scope quota cooldowns to the requested model rather than cooling down
     # the entire credential across all sibling models. Default is false.
     model-level-cooling: false
