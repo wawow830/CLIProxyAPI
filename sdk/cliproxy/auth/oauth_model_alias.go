@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	internalconfig "github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/fastmode"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
 )
 
@@ -268,7 +269,15 @@ func (m *Manager) resolveOAuthModelAliasWithResult(auth *Auth, requestedModel st
 	if result := resolveUpstreamModelFromAliases(OAuthModelAliasesFromAttributes(authAttributes(auth)), requestedModel); result.UpstreamModel != "" {
 		return result
 	}
-	return resolveUpstreamModelFromAliasTable(m, auth, requestedModel, channel)
+	if result := resolveUpstreamModelFromAliasTable(m, auth, requestedModel, channel); result.UpstreamModel != "" {
+		return result
+	}
+	if channel == fastmode.Channel {
+		if base, ok := fastmode.Trim(requestedModel); ok {
+			return OAuthModelAliasResult{UpstreamModel: base, OriginalAlias: requestedModel}
+		}
+	}
+	return OAuthModelAliasResult{}
 }
 
 func authAttributes(auth *Auth) map[string]string {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/constant"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/fastmode"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/modelconfig"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
@@ -285,7 +286,7 @@ func (s *Service) registerModelsForAuthWithCache(ctx context.Context, a *coreaut
 	if ctx.Err() != nil {
 		return
 	}
-	models = applyOAuthModelAliasForAuth(s.cfg, provider, authKind, a.Attributes, models)
+	models = applyModelCatalogAliasesForAuth(s.cfg, provider, authKind, a.Attributes, models)
 	if ctx.Err() != nil {
 		return
 	}
@@ -977,6 +978,16 @@ func applyOAuthModelAlias(cfg *config.Config, provider, authKind string, models 
 }
 
 func applyOAuthModelAliasForAuth(cfg *config.Config, provider, authKind string, attributes map[string]string, models []*ModelInfo) []*ModelInfo {
+	return applyOAuthModelAliasForAuthWithFast(cfg, provider, authKind, attributes, models, false)
+}
+
+// applyModelCatalogAliasesForAuth is the production entry point: configured aliases plus
+// the automatic "<model>-fast" variants for Codex.
+func applyModelCatalogAliasesForAuth(cfg *config.Config, provider, authKind string, attributes map[string]string, models []*ModelInfo) []*ModelInfo {
+	return applyOAuthModelAliasForAuthWithFast(cfg, provider, authKind, attributes, models, true)
+}
+
+func applyOAuthModelAliasForAuthWithFast(cfg *config.Config, provider, authKind string, attributes map[string]string, models []*ModelInfo, fast bool) []*ModelInfo {
 	if len(models) == 0 {
 		return models
 	}
@@ -985,10 +996,41 @@ func applyOAuthModelAliasForAuth(cfg *config.Config, provider, authKind string, 
 		return models
 	}
 	aliases := oauthModelAliasesForAuth(cfg, channel, attributes)
+	if fast && channel == fastmode.Channel {
+		aliases = appendFastVariantAliases(aliases, models)
+	}
 	if len(aliases) == 0 {
 		return models
 	}
 	return applyOAuthModelAliasEntries(aliases, models)
+}
+
+// appendFastVariantAliases adds a forked "<model>-fast" alias for every eligible
+// model that does not already have an explicit alias of that name.
+func appendFastVariantAliases(aliases []config.OAuthModelAlias, models []*ModelInfo) []config.OAuthModelAlias {
+	taken := make(map[string]struct{}, len(aliases)+len(models))
+	for i := range aliases {
+		taken[strings.ToLower(strings.TrimSpace(aliases[i].Alias))] = struct{}{}
+	}
+	for _, model := range models {
+		if model != nil {
+			taken[strings.ToLower(strings.TrimSpace(model.ID))] = struct{}{}
+		}
+	}
+	out := aliases
+	for _, model := range models {
+		if model == nil || !fastmode.Eligible(model.ID) {
+			continue
+		}
+		id := strings.TrimSpace(model.ID)
+		alias := id + fastmode.Suffix
+		if _, exists := taken[strings.ToLower(alias)]; exists {
+			continue
+		}
+		taken[strings.ToLower(alias)] = struct{}{}
+		out = append(out, config.OAuthModelAlias{Name: id, Alias: alias, Fork: true})
+	}
+	return out
 }
 
 func oauthModelAliasesForAuth(cfg *config.Config, channel string, attributes map[string]string) []config.OAuthModelAlias {

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/fastmode"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/thinking"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
 	"github.com/tidwall/gjson"
@@ -58,6 +59,15 @@ func ApplyPayloadConfigWithTrackedPathsForExecutor(cfg *config.Config, targetExe
 	}
 	if IsCodexUserAgent(headers) && !isCodexTargetExecutor(targetExecutor) {
 		payload = NormalizeCodexToolIntegerTypes(payload, headers)
+	}
+	// "<model>-fast" requests use the OpenAI priority service tier. Applied before
+	// config rules so an explicit payload rule can still override it.
+	if strings.EqualFold(strings.TrimSpace(protocol), fastmode.Channel) && fastmode.IsFast(requestedModel) {
+		if path := buildPayloadPath(root, "service_tier"); path != "" {
+			if updated, errSet := sjson.SetBytes(payload, path, fastmode.ServiceTier); errSet == nil {
+				payload = updated
+			}
+		}
 	}
 	if cfg == nil {
 		return payload, touched
