@@ -113,6 +113,10 @@ func defaultPluginInstanceConfigNode() *yaml.Node {
 
 // ClaudeConfig configures provider-wide Claude request behavior.
 type ClaudeConfig struct {
+	// PromptCacheTTL forces the default five-minute pool when set to "5m".
+	// Empty preserves native credential-dependent TTL selection.
+	PromptCacheTTL string `yaml:"prompt-cache-ttl,omitempty" json:"prompt-cache-ttl,omitempty"`
+
 	// ModelLevelCooling scopes Claude quota cooldowns to the requested model
 	// rather than cooling down the entire credential across all sibling models.
 	ModelLevelCooling bool `yaml:"model-level-cooling" json:"model-level-cooling"`

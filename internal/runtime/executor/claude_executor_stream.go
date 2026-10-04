@@ -250,6 +250,10 @@ func (e *ClaudeExecutor) ExecuteStream(ctx context.Context, auth *cliproxyauth.A
 
 	// Normalize TTL values to prevent ordering violations under prompt-caching-scope-2026-01-05.
 	body = normalizeCacheControlTTL(body)
+	if e.cfg != nil && e.cfg.Claude.PromptCacheTTL == "5m" {
+		// No ttl means Anthropic's five-minute default, including caller markers.
+		body = stripClaudeCacheControlTTL(body)
+	}
 
 	// Extract betas from body and convert to header
 	var extraBetas []string
